@@ -1,7 +1,7 @@
 use glam::Vec2;
 use std::ops::Index;
 
-/// Represent closed path of vertices
+/// Represent closed circuit of vertices
 pub struct Outline {
     vertices: Vec<Vec2>,
 }
@@ -30,11 +30,15 @@ impl Outline {
         (prev - that, next - that)
     }
 
+    /// Test if angle is convex;
+    /// * `i` - index of vertex. May be negative;
     pub fn convex(&self, i: isize) -> bool {
         let (_, sin) = self.inner_angle_cos_sin(i);
         return sin > 0f32;
     }
 
+    /// Test if angle is concave;
+    /// * `i` - index of vertex. May be negative;
     pub fn concave(&self, i: isize) -> bool {
         !self.convex(i)
     }
@@ -63,6 +67,9 @@ impl Outline {
         sin.atan2(cos)
     }
 
+    /// Outer angle for vertex `i`-th vertex
+    /// # Arguments
+    /// * `i` - index of vertex. May be negative;
     pub fn outer_angle(&self, i: isize) -> f32 {
         return 2f32 * std::f32::consts::PI - self.inner_angle(i);
     }
