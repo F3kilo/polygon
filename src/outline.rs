@@ -17,44 +17,50 @@ impl Outline {
         }
     }
 
+    /// Tuple of (`i-1`, `i`, `i+1`) vertices;
+    /// * `i` - index of vertex. May be negative;
     pub fn prev_that_next(&self, i: isize) -> (Vec2, Vec2, Vec2) {
         (self[i - 1], self[i], self[i + 1])
     }
 
+    /// Tuple of vectors to previous and to next vertex for `i`-th vertex;
+    /// * `i` - index of vertex. May be negative;
     pub fn to_neighbors(&self, i: isize) -> (Vec2, Vec2) {
         let (prev, that, next) = self.prev_that_next(i);
         (prev - that, next - that)
     }
 
     pub fn convex(&self, i: isize) -> bool {
-        let (to_prev, to_next) = self.to_neighbors(i);
-        let from_prev = -to_prev;
-        println!("From prev: {}", from_prev);
-        println!("To next: {}", to_next);
-
-        let from_prev_ort_to_inside = Vec2::new(-from_prev.y(), from_prev.x());
-        println!("To inside: {}", from_prev_ort_to_inside);
-
-        let dot = from_prev_ort_to_inside.dot(to_next);
-        println!("Dot: {}", dot);
-        dot >= 0f32
+        let (_, sin) = self.inner_angle_cos_sin(i);
+        return sin > 0f32;
     }
 
     pub fn concave(&self, i: isize) -> bool {
         !self.convex(i)
     }
 
-    pub fn inner_angle(&self, i: isize) -> f32 {
+    /// `sin()` and `cos()` for counter-clockwise angle between vector to next vertex and vector
+    /// to previos.
+    /// # Arguments
+    /// * `i` - index of vertex. May be negative;
+    pub fn inner_angle_cos_sin(&self, i: isize) -> (f32, f32) {
         let (to_prev, to_next) = self.to_neighbors(i);
-        let min_angle =
-            (to_prev.length_reciprocal() * to_next.length_reciprocal() * to_prev.dot(to_next))
-                .acos();
+        let prev_inv_len = to_prev.length_reciprocal();
+        let next_inv_len = to_next.length_reciprocal();
+        let norm_coef = prev_inv_len * next_inv_len;
+        let cross = to_next.extend(0f32).cross(to_prev.extend(0f32));
 
-        if self.convex(i) {
-            return min_angle;
-        } else {
-            return 2f32 * std::f32::consts::PI - min_angle;
-        }
+        let cos = norm_coef * to_prev.dot(to_next);
+        let sin = norm_coef * cross.z();
+        (cos, sin)
+    }
+
+    /// Inner angle for vertex `i`-th vertex
+    /// # Arguments
+    /// * `i` - index of vertex. May be negative;
+    pub fn inner_angle(&self, i: isize) -> f32 {
+        let (cos, sin) = self.inner_angle_cos_sin(i);
+        sin.atan2(cos)
     }
 
     pub fn outer_angle(&self, i: isize) -> f32 {
@@ -139,5 +145,27 @@ mod tests {
         let verts = vec![a, b, c];
         let outline = Outline::new(verts.into_iter());
         assert!(outline.concave(1));
+    }
+
+    #[test]
+    fn inner_angle() {
+        let a = Vec2::new(0f32, 0f32);
+        let b = Vec2::new(1f32, 0f32);
+        let c = Vec2::new(1f32, 1f32);
+        let verts = vec![a, b, c];
+        let outline = Outline::new(verts.into_iter());
+        assert_eq!(outline.inner_angle(0), std::f32::consts::FRAC_PI_4);
+        assert_eq!(outline.inner_angle(1), std::f32::consts::FRAC_PI_2);
+    }
+
+    #[test]
+    fn outer_angle() {
+        let a = Vec2::new(0f32, 0f32);
+        let b = Vec2::new(1f32, 0f32);
+        let c = Vec2::new(1f32, 1f32);
+        let verts = vec![a, b, c];
+        let outline = Outline::new(verts.into_iter());
+        assert_eq!(outline.outer_angle(0), 7f32 * std::f32::consts::FRAC_PI_4);
+        assert_eq!(outline.outer_angle(1), 3f32 * std::f32::consts::FRAC_PI_2);
     }
 }
